@@ -19,11 +19,12 @@ export const createUser = async (userData) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create new user
+    // Create new user with default region as India
     const newUser = new User({
       userName,
       email,
       password: hashedPassword,
+      region: "India"
     });
 
     await newUser.save();
@@ -83,14 +84,23 @@ export const findUserByEmail = async (email) => {
  */
 export const updateUserProfile = async (userId, updateData) => {
   try {
+    console.log("Updating user profile for ID:", userId);
+    console.log("Update data:", updateData);
+    
+    // Ensure region is always set to "India"
+    updateData.region = "India";
+    
     const user = await User.findByIdAndUpdate(
       userId,
       { $set: updateData },
       { new: true }
     ).select("-password");
     
+    console.log("Updated user result:", user);
+    
     return user;
   } catch (error) {
+    console.log(`Error updating user profile: ${error.message}`);
     throw new Error(`Error updating user profile: ${error.message}`);
   }
 };

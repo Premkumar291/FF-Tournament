@@ -30,25 +30,28 @@ export const getUserProfile = async (req, res) => {
  */
 export const updateUserProfileController = async (req, res) => {
   try {
-    const { userName, fullName, email, bio, profileImage, coverImage } = req.body;
+    console.log("Received profile update request:", req.body);
+    console.log("User ID:", req.user._id);
     
-    // Check if username is already taken
-    if (userName) {
-      const existingUser = await findUserByUserName(userName);
-      if (existingUser && existingUser._id.toString() !== req.user._id.toString()) {
-        return res.status(400).json({ message: "Username already taken" });
-      }
-    }
+    const { fullName, bio, profileImage, coverImage, freeFireUID } = req.body;
     
-    const updateData = {};
-    if (userName) updateData.userName = userName;
-    if (fullName) updateData.fullName = fullName;
-    if (email) updateData.email = email;
+    // Prepare update data - always set region to "India"
+    const updateData = {
+      region: "India" // Always set region to India
+    };
+    
+    // Add other fields if provided (but exclude email and username)
+    if (fullName !== undefined) updateData.fullName = fullName;
     if (bio !== undefined) updateData.bio = bio;
     if (profileImage) updateData.profileImage = profileImage;
     if (coverImage) updateData.coverImage = coverImage;
+    if (freeFireUID) updateData.freeFireUID = freeFireUID;
+    
+    console.log("Update data:", updateData);
     
     const updatedUser = await updateUserProfile(req.user._id, updateData);
+    
+    console.log("Updated user:", updatedUser);
     
     res.status(200).json({
       message: "Profile updated successfully",

@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 8080;
 
 // CORS configuration
 const corsOptions = {
-  origin: "http://localhost:5173", // Frontend origin
+  origin: ["http://localhost:5173" , "http://localhost:5174"], // Frontend origin
   credentials: true, // Enable credentials (cookies, authorization headers, etc.)
   optionsSuccessStatus: 200
 };

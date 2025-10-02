@@ -20,21 +20,32 @@ import {
   Crown,
   Flame,
   Star,
+  Lock,
+  Image,
+  Camera,
 } from "lucide-react"
-import { getUser } from "../../API/Auth/auth.api"
+import { getUser, updateUserProfile, updateUserPassword } from "../../API/Auth/auth.api"
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("overview")
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [profileData, setProfileData] = useState({
-    username: "ProGamer_2024",
-    email: "progamer@example.com",
-    freeFireUID: "1234567890",
-    teamName: "Rogue Legion",
-    rank: "Diamond II",
-    region: "Asia Pacific",
+    username: "",
+    fullName: "",
+    email: "",
+    freeFireUID: "",
+    region: "India",
+    bio: "",
+    profileImage: "",
+    coverImage: "",
   })
   const [editedProfile, setEditedProfile] = useState({ ...profileData })
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmNewPassword: ""
+  })
+  const [showChangePassword, setShowChangePassword] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const navigate = useNavigate()
@@ -46,12 +57,14 @@ export default function DashboardPage() {
         const response = await getUser()
         if (response.success) {
           setProfileData({
-            username: response.data.userName || "ProGamer_2024",
-            email: response.data.email || "progamer@example.com",
-            freeFireUID: response.data.freeFireUID || "1234567890",
-            teamName: response.data.teamName || "Rogue Legion",
-            rank: response.data.rank || "Diamond II",
-            region: response.data.region || "Asia Pacific",
+            username: response.data.userName || "",
+            fullName: response.data.fullName || "",
+            email: response.data.email || "",
+            freeFireUID: response.data.freeFireUID || "",
+            region: response.data.region || "India",
+            bio: response.data.bio || "",
+            profileImage: response.data.profileImage || "",
+            coverImage: response.data.coverImage || "",
           })
         } else {
           setError(response.data.message || "Failed to fetch user data")
@@ -69,22 +82,87 @@ export default function DashboardPage() {
 
   const handleSaveProfile = async () => {
     try {
-      // In a real app, you would make an API call to update the profile
-      // For now, we'll just update the local state
-      setProfileData({ ...editedProfile })
-      setIsEditingProfile(false)
+      // Prepare data to send - exclude email, username, and make region always "India"
+      const profileToUpdate = {
+        ...editedProfile,
+        region: "India", // Always set to India
+      }
       
-      // Show success message
-      alert("Profile updated successfully!")
+      // Remove email and username from the update data (they can't be changed)
+      delete profileToUpdate.email
+      delete profileToUpdate.username
+      
+      console.log("Sending profile update with data:", profileToUpdate);
+      const response = await updateUserProfile(profileToUpdate)
+      console.log("Profile update response:", response);
+      
+      if (response.success) {
+        setProfileData({ 
+          ...editedProfile,
+          region: "India" // Always show India in UI
+        })
+        setIsEditingProfile(false)
+        alert("Profile updated successfully!")
+      } else {
+        setError(response.data.message || "Failed to update profile")
+        console.log("Profile update failed:", response.data);
+      }
     } catch (err) {
-      setError("Failed to update profile")
+      setError("Failed to update profile: " + err.message)
       console.error("Error updating profile:", err)
+    }
+  }
+
+  const handleChangePassword = async () => {
+    if (passwordData.newPassword !== passwordData.confirmNewPassword) {
+      setError("New passwords do not match")
+      return
+    }
+    
+    if (passwordData.newPassword.length < 6) {
+      setError("Password must be at least 6 characters long")
+      return
+    }
+
+    try {
+      const response = await updateUserPassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      })
+      
+      if (response.success) {
+        setPasswordData({
+          currentPassword: "",
+          newPassword: "",
+          confirmNewPassword: ""
+        })
+        setShowChangePassword(false)
+        alert("Password updated successfully!")
+      } else {
+        setError(response.data.message || "Failed to update password")
+      }
+    } catch (err) {
+      setError("Failed to update password")
+      console.error("Error updating password:", err)
     }
   }
 
   const handleCancelEdit = () => {
     setEditedProfile({ ...profileData })
     setIsEditingProfile(false)
+  }
+
+  const handleProfileImageChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      // In a real app, you would upload the file to a server
+      // For now, we'll just create a local preview
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        setEditedProfile({ ...editedProfile, profileImage: event.target.result })
+      }
+      reader.readAsDataURL(file)
+    }
   }
 
   const handleLogout = async () => {
@@ -124,11 +202,13 @@ export default function DashboardPage() {
       if (userResponse.success) {
         setProfileData({
           username: userResponse.data.userName || profileData.username,
+          fullName: userResponse.data.fullName || profileData.fullName,
           email: userResponse.data.email || profileData.email,
           freeFireUID: userResponse.data.freeFireUID || profileData.freeFireUID,
-          teamName: userResponse.data.teamName || profileData.teamName,
-          rank: userResponse.data.rank || profileData.rank,
-          region: userResponse.data.region || profileData.region,
+          region: userResponse.data.region || "India",
+          bio: userResponse.data.bio || profileData.bio,
+          profileImage: userResponse.data.profileImage || profileData.profileImage,
+          coverImage: userResponse.data.coverImage || profileData.coverImage,
         })
       }
     } catch (err) {
@@ -1094,8 +1174,10 @@ export default function DashboardPage() {
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
+                position: "relative",
               }}
             >
+              {/* Profile Image */}
               <div
                 style={{
                   width: "100px",
@@ -1107,23 +1189,50 @@ export default function DashboardPage() {
                   justifyContent: "center",
                   marginBottom: "16px",
                   boxShadow: "0 8px 24px rgba(211,47,47,0.4)",
+                  position: "relative",
+                  overflow: "hidden",
                 }}
               >
-                <User style={{ width: "50px", height: "50px", color: "white" }} />
+                {editedProfile.profileImage ? (
+                  <img 
+                    src={editedProfile.profileImage} 
+                    alt="Profile" 
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <User style={{ width: "50px", height: "50px", color: "white" }} />
+                )}
+                
+                {isEditingProfile && (
+                  <label
+                    style={{
+                      position: "absolute",
+                      bottom: "0",
+                      right: "0",
+                      background: "linear-gradient(135deg, #d32f2f 0%, #ff5722 100%)",
+                      borderRadius: "50%",
+                      width: "30px",
+                      height: "30px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+                    }}
+                  >
+                    <Camera style={{ width: "16px", height: "16px", color: "white" }} />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProfileImageChange}
+                      style={{ display: "none" }}
+                    />
+                  </label>
+                )}
               </div>
+              
               <div style={{ fontSize: "24px", fontWeight: "800", color: "#1a1a1a", marginBottom: "6px" }}>
                 {profileData.username}
-              </div>
-              <div
-                style={{
-                  fontSize: "15px",
-                  fontWeight: "600",
-                  background: "linear-gradient(135deg, #d32f2f 0%, #ff5722 100%)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                }}
-              >
-                {profileData.rank}
               </div>
             </div>
 
@@ -1136,6 +1245,7 @@ export default function DashboardPage() {
                 padding: "24px",
                 boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
                 border: "1px solid rgba(255,255,255,0.3)",
+                marginBottom: "20px",
               }}
             >
               <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#1a1a1a", marginBottom: "20px" }}>
@@ -1143,7 +1253,45 @@ export default function DashboardPage() {
               </h3>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                {/* Username */}
+                {/* Full Name */}
+                <div>
+                  <label
+                    style={{
+                      fontSize: "13px",
+                      color: "#666",
+                      fontWeight: "600",
+                      display: "block",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    Full Name
+                  </label>
+                  {isEditingProfile ? (
+                    <input
+                      type="text"
+                      value={editedProfile.fullName}
+                      onChange={(e) => setEditedProfile({ ...editedProfile, fullName: e.target.value })}
+                      style={{
+                        width: "100%",
+                        padding: "12px 16px",
+                        border: "2px solid #e0e0e0",
+                        borderRadius: "10px",
+                        fontSize: "14px",
+                        color: "#1a1a1a",
+                        fontWeight: "500",
+                        transition: "all 0.3s",
+                      }}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = "#d32f2f")}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = "#e0e0e0")}
+                    />
+                  ) : (
+                    <div style={{ fontSize: "15px", color: "#1a1a1a", fontWeight: "600" }}>
+                      {profileData.fullName || "Not set"}
+                    </div>
+                  )}
+                </div>
+
+                {/* Username - Read-only */}
                 <div>
                   <label
                     style={{
@@ -1156,30 +1304,18 @@ export default function DashboardPage() {
                   >
                     Username
                   </label>
-                  {isEditingProfile ? (
+                  <div style={{ fontSize: "15px", color: "#1a1a1a", fontWeight: "600" }}>
+                    {profileData.username}
+                  </div>
+                  {isEditingProfile && (
                     <input
-                      type="text"
-                      value={editedProfile.username}
-                      onChange={(e) => setEditedProfile({ ...editedProfile, username: e.target.value })}
-                      style={{
-                        width: "100%",
-                        padding: "12px 16px",
-                        border: "2px solid #e0e0e0",
-                        borderRadius: "10px",
-                        fontSize: "14px",
-                        color: "#1a1a1a",
-                        fontWeight: "500",
-                        transition: "all 0.3s",
-                      }}
-                      onFocus={(e) => (e.currentTarget.style.borderColor = "#d32f2f")}
-                      onBlur={(e) => (e.currentTarget.style.borderColor = "#e0e0e0")}
+                      type="hidden"
+                      value={profileData.username}
                     />
-                  ) : (
-                    <div style={{ fontSize: "15px", color: "#1a1a1a", fontWeight: "600" }}>{profileData.username}</div>
                   )}
                 </div>
 
-                {/* Email */}
+                {/* Email - Read-only */}
                 <div>
                   <label
                     style={{
@@ -1192,26 +1328,14 @@ export default function DashboardPage() {
                   >
                     Email
                   </label>
-                  {isEditingProfile ? (
+                  <div style={{ fontSize: "15px", color: "#1a1a1a", fontWeight: "600" }}>
+                    {profileData.email}
+                  </div>
+                  {isEditingProfile && (
                     <input
-                      type="email"
-                      value={editedProfile.email}
-                      onChange={(e) => setEditedProfile({ ...editedProfile, email: e.target.value })}
-                      style={{
-                        width: "100%",
-                        padding: "12px 16px",
-                        border: "2px solid #e0e0e0",
-                        borderRadius: "10px",
-                        fontSize: "14px",
-                        color: "#1a1a1a",
-                        fontWeight: "500",
-                        transition: "all 0.3s",
-                      }}
-                      onFocus={(e) => (e.currentTarget.style.borderColor = "#d32f2f")}
-                      onBlur={(e) => (e.currentTarget.style.borderColor = "#e0e0e0")}
+                      type="hidden"
+                      value={profileData.email}
                     />
-                  ) : (
-                    <div style={{ fontSize: "15px", color: "#1a1a1a", fontWeight: "600" }}>{profileData.email}</div>
                   )}
                 </div>
 
@@ -1248,12 +1372,12 @@ export default function DashboardPage() {
                     />
                   ) : (
                     <div style={{ fontSize: "15px", color: "#1a1a1a", fontWeight: "600" }}>
-                      {profileData.freeFireUID}
+                      {profileData.freeFireUID || "Not set"}
                     </div>
                   )}
                 </div>
 
-                {/* Team Name */}
+                {/* Region - Fixed as India */}
                 <div>
                   <label
                     style={{
@@ -1264,13 +1388,113 @@ export default function DashboardPage() {
                       marginBottom: "8px",
                     }}
                   >
-                    Team Name
+                    Region
+                  </label>
+                  <div style={{ fontSize: "15px", color: "#1a1a1a", fontWeight: "600" }}>India</div>
+                  {isEditingProfile && (
+                    <input
+                      type="hidden"
+                      value="India"
+                    />
+                  )}
+                </div>
+
+                {/* Bio */}
+                <div>
+                  <label
+                    style={{
+                      fontSize: "13px",
+                      color: "#666",
+                      fontWeight: "600",
+                      display: "block",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    Bio
                   </label>
                   {isEditingProfile ? (
+                    <textarea
+                      value={editedProfile.bio}
+                      onChange={(e) => setEditedProfile({ ...editedProfile, bio: e.target.value })}
+                      style={{
+                        width: "100%",
+                        padding: "12px 16px",
+                        border: "2px solid #e0e0e0",
+                        borderRadius: "10px",
+                        fontSize: "14px",
+                        color: "#1a1a1a",
+                        fontWeight: "500",
+                        transition: "all 0.3s",
+                        minHeight: "80px",
+                        resize: "vertical",
+                      }}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = "#d32f2f")}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = "#e0e0e0")}
+                    />
+                  ) : (
+                    <div style={{ fontSize: "15px", color: "#1a1a1a", fontWeight: "600" }}>
+                      {profileData.bio || "No bio yet"}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Change Password Section */}
+            <div
+              style={{
+                background: "rgba(255,255,255,0.95)",
+                backdropFilter: "blur(10px)",
+                borderRadius: "20px",
+                padding: "24px",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+                border: "1px solid rgba(255,255,255,0.3)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#1a1a1a", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Lock style={{ width: "18px", height: "18px" }} />
+                  Change Password
+                </h3>
+                <button
+                  onClick={() => setShowChangePassword(!showChangePassword)}
+                  style={{
+                    background: "rgba(255,255,255,0.2)",
+                    backdropFilter: "blur(10px)",
+                    border: "1px solid rgba(255,255,255,0.3)",
+                    color: "#1a1a1a",
+                    padding: "6px 12px",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    transition: "all 0.3s",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.3)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.2)")}
+                >
+                  {showChangePassword ? "Cancel" : "Change"}
+                </button>
+              </div>
+
+              {showChangePassword && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  <div>
+                    <label
+                      style={{
+                        fontSize: "13px",
+                        color: "#666",
+                        fontWeight: "600",
+                        display: "block",
+                        marginBottom: "8px",
+                      }}
+                    >
+                      Current Password
+                    </label>
                     <input
-                      type="text"
-                      value={editedProfile.teamName}
-                      onChange={(e) => setEditedProfile({ ...editedProfile, teamName: e.target.value })}
+                      type="password"
+                      value={passwordData.currentPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
                       style={{
                         width: "100%",
                         padding: "12px 16px",
@@ -1284,28 +1508,24 @@ export default function DashboardPage() {
                       onFocus={(e) => (e.currentTarget.style.borderColor = "#d32f2f")}
                       onBlur={(e) => (e.currentTarget.style.borderColor = "#e0e0e0")}
                     />
-                  ) : (
-                    <div style={{ fontSize: "15px", color: "#1a1a1a", fontWeight: "600" }}>{profileData.teamName}</div>
-                  )}
-                </div>
+                  </div>
 
-                {/* Rank */}
-                <div>
-                  <label
-                    style={{
-                      fontSize: "13px",
-                      color: "#666",
-                      fontWeight: "600",
-                      display: "block",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    Current Rank
-                  </label>
-                  {isEditingProfile ? (
-                    <select
-                      value={editedProfile.rank}
-                      onChange={(e) => setEditedProfile({ ...editedProfile, rank: e.target.value })}
+                  <div>
+                    <label
+                      style={{
+                        fontSize: "13px",
+                        color: "#666",
+                        fontWeight: "600",
+                        display: "block",
+                        marginBottom: "8px",
+                      }}
+                    >
+                      New Password
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordData.newPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                       style={{
                         width: "100%",
                         padding: "12px 16px",
@@ -1318,39 +1538,25 @@ export default function DashboardPage() {
                       }}
                       onFocus={(e) => (e.currentTarget.style.borderColor = "#d32f2f")}
                       onBlur={(e) => (e.currentTarget.style.borderColor = "#e0e0e0")}
-                    >
-                      <option>Bronze</option>
-                      <option>Silver</option>
-                      <option>Gold</option>
-                      <option>Platinum</option>
-                      <option>Diamond I</option>
-                      <option>Diamond II</option>
-                      <option>Diamond III</option>
-                      <option>Heroic</option>
-                      <option>Grandmaster</option>
-                    </select>
-                  ) : (
-                    <div style={{ fontSize: "15px", color: "#1a1a1a", fontWeight: "600" }}>{profileData.rank}</div>
-                  )}
-                </div>
+                    />
+                  </div>
 
-                {/* Region */}
-                <div>
-                  <label
-                    style={{
-                      fontSize: "13px",
-                      color: "#666",
-                      fontWeight: "600",
-                      display: "block",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    Region
-                  </label>
-                  {isEditingProfile ? (
-                    <select
-                      value={editedProfile.region}
-                      onChange={(e) => setEditedProfile({ ...editedProfile, region: e.target.value })}
+                  <div>
+                    <label
+                      style={{
+                        fontSize: "13px",
+                        color: "#666",
+                        fontWeight: "600",
+                        display: "block",
+                        marginBottom: "8px",
+                      }}
+                    >
+                      Confirm New Password
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordData.confirmNewPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, confirmNewPassword: e.target.value })}
                       style={{
                         width: "100%",
                         padding: "12px 16px",
@@ -1363,19 +1569,36 @@ export default function DashboardPage() {
                       }}
                       onFocus={(e) => (e.currentTarget.style.borderColor = "#d32f2f")}
                       onBlur={(e) => (e.currentTarget.style.borderColor = "#e0e0e0")}
-                    >
-                      <option>Asia Pacific</option>
-                      <option>North America</option>
-                      <option>Europe</option>
-                      <option>South America</option>
-                      <option>Middle East</option>
-                      <option>Africa</option>
-                    </select>
-                  ) : (
-                    <div style={{ fontSize: "15px", color: "#1a1a1a", fontWeight: "600" }}>{profileData.region}</div>
-                  )}
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleChangePassword}
+                    style={{
+                      background: "linear-gradient(135deg, #d32f2f 0%, #ff5722 100%)",
+                      color: "white",
+                      padding: "12px 20px",
+                      borderRadius: "10px",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      border: "none",
+                      cursor: "pointer",
+                      boxShadow: "0 4px 16px rgba(211,47,47,0.4)",
+                      transition: "all 0.3s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateY(-2px)"
+                      e.currentTarget.style.boxShadow = "0 6px 20px rgba(211,47,47,0.5)"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)"
+                      e.currentTarget.style.boxShadow = "0 4px 16px rgba(211,47,47,0.4)"
+                    }}
+                  >
+                    Update Password
+                  </button>
                 </div>
-              </div>
+              )}
             </div>
           </section>
         )}

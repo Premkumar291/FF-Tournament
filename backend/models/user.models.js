@@ -7,6 +7,10 @@ const userSchema = mongoose.Schema(
       required: true,
       unique: true,
     },
+    fullName: {
+      type: String,
+      default: "",
+    },
     email: {
       type: String,
       required: true,
@@ -29,10 +33,22 @@ const userSchema = mongoose.Schema(
       type: String,
       default: "",
     },
+    freeFireUID: {
+      type: String,
+      default: "",
+    },
+    region: {
+      type: String,
+      default: "India",
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+},
     resetPasswordToken: String,
     resetPasswordExpiresAt: Date,
-    verificationToken : String,
-    verificationTokenExpiresAt : Date
+    verificationToken: String,
+    verificationTokenExpiresAt: Date
   },
   { timestamps: true }
 );
